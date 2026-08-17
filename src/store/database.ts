@@ -1,6 +1,11 @@
 import { mkdirSync, rmSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import {
+  symbolReferenceKey,
+  type ExtractedIndex,
+  type SymbolReference,
+} from "../records.js";
 import { initializeSchema, SCHEMA_VERSION } from "./schema.js";
 
 export const INDEXER_VERSION = "0.1.0";
@@ -10,27 +15,13 @@ export interface InitializedIndex {
   databasePath: string;
   fileCount: number;
   symbolCount: number;
-}
-
-export interface IndexedSymbol {
-  name: string;
-  qualifiedName: string;
-  kind: string;
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
-  signature: string | null;
-}
-
-export interface IndexedFile {
-  path: string;
-  symbols: readonly IndexedSymbol[];
+  importCount: number;
+  callCount: number;
 }
 
 export function initializeIndex(
   repositoryPath: string,
-  files: readonly IndexedFile[],
+  index: ExtractedIndex,
 ): InitializedIndex {
   const repositoryRoot = resolve(repositoryPath);
 
@@ -57,6 +48,16 @@ export function initializeIndex(
         start_line, start_column, end_line, end_column, signature
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
+    const insertImport = database.prepare(`
+      INSERT INTO imports (source_file_id, target_file_id, specifier)
+      VALUES (?, ?, ?)
+    `);
+    const insertCall = database.prepare(`
+      INSERT INTO relationships (source_symbol_id, target_symbol_id)
+      VALUES (?, ?)
+    `);
+    const fileIds = new Map<string, number | bigint>();
+    const symbolIds = new Map<string, number | bigint>();
 
     database.exec("BEGIN");
     insertMetadata.run("schema_version", SCHEMA_VERSION);
@@ -64,11 +65,12 @@ export function initializeIndex(
     insertMetadata.run("indexed_at", new Date().toISOString());
     insertMetadata.run("indexer_version", INDEXER_VERSION);
 
-    for (const file of files) {
+    for (const file of index.files) {
       const fileId = insertFile.run(file.path).lastInsertRowid;
+      fileIds.set(file.path, fileId);
 
       for (const symbol of file.symbols) {
-        insertSymbol.run(
+        const symbolId = insertSymbol.run(
           fileId,
           symbol.name,
           symbol.qualifiedName,
@@ -78,8 +80,40 @@ export function initializeIndex(
           symbol.endLine,
           symbol.endColumn,
           symbol.signature,
-        );
+        ).lastInsertRowid;
+        const reference: SymbolReference = {
+          filePath: file.path,
+          name: symbol.name,
+          qualifiedName: symbol.qualifiedName,
+          kind: symbol.kind,
+          startLine: symbol.startLine,
+          startColumn: symbol.startColumn,
+        };
+        symbolIds.set(symbolReferenceKey(reference), symbolId);
       }
+    }
+
+    for (const importedFile of index.imports) {
+      insertImport.run(
+        requireId(fileIds, importedFile.sourcePath, "file"),
+        requireId(fileIds, importedFile.targetPath, "file"),
+        importedFile.specifier,
+      );
+    }
+
+    for (const call of index.calls) {
+      insertCall.run(
+        requireId(
+          symbolIds,
+          symbolReferenceKey(call.sourceSymbol),
+          "symbol",
+        ),
+        requireId(
+          symbolIds,
+          symbolReferenceKey(call.targetSymbol),
+          "symbol",
+        ),
+      );
     }
 
     database.exec("COMMIT");
@@ -95,7 +129,25 @@ export function initializeIndex(
   return {
     repositoryRoot,
     databasePath,
-    fileCount: files.length,
-    symbolCount: files.reduce((count, file) => count + file.symbols.length, 0),
+    fileCount: index.files.length,
+    symbolCount: index.files.reduce(
+      (count, file) => count + file.symbols.length,
+      0,
+    ),
+    importCount: index.imports.length,
+    callCount: index.calls.length,
   };
+}
+
+function requireId(
+  ids: ReadonlyMap<string, number | bigint>,
+  key: string,
+  kind: "file" | "symbol",
+): number | bigint {
+  const id = ids.get(key);
+  if (id === undefined) {
+    throw new Error(`Cannot persist relationship for unknown ${kind}: ${key}`);
+  }
+
+  return id;
 }

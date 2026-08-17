@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/project.test.js dist/tests/cli.test.js",
+    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/project.test.js dist/tests/relationships.test.js dist/tests/cli.test.js",
     "ari": "node dist/src/cli.js"
   },
   "dependencies": {

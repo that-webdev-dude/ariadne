@@ -1,74 +1,92 @@
 import { relative, sep } from "node:path";
 import ts from "typescript";
 import type { LoadedProject } from "../project/loader.js";
+import type {
+  ExtractedFile,
+  ExtractedSymbol,
+  SymbolKind,
+  SymbolReference,
+} from "../records.js";
 
-export type SymbolKind =
-  | "function"
-  | "method"
-  | "class"
-  | "interface"
-  | "type_alias"
-  | "callable_variable";
-
-export interface ExtractedSymbol {
-  name: string;
-  qualifiedName: string;
-  kind: SymbolKind;
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
-  signature: string | null;
-}
-
-export interface ExtractedFile {
-  path: string;
-  symbols: readonly ExtractedSymbol[];
+export interface ProjectSymbolExtraction {
+  files: readonly ExtractedFile[];
+  referencesByDeclaration: ReadonlyMap<ts.Node, SymbolReference>;
+  referencesBySymbol: ReadonlyMap<ts.Symbol, SymbolReference>;
 }
 
 export function extractFilesAndSymbols(
   project: LoadedProject,
 ): ExtractedFile[] {
-  return project.sourceFiles.map((sourceFile) => ({
-    path: relative(project.repositoryRoot, sourceFile.fileName).split(sep).join("/"),
-    symbols: extractSymbols(sourceFile, project.checker),
-  }));
+  return [...extractProjectSymbols(project).files];
 }
 
-function extractSymbols(
-  sourceFile: ts.SourceFile,
-  checker: ts.TypeChecker,
-): ExtractedSymbol[] {
-  const symbols: ExtractedSymbol[] = [];
-  const seen = new Set<ts.Symbol>();
+export function extractProjectSymbols(
+  project: LoadedProject,
+): ProjectSymbolExtraction {
+  const files: ExtractedFile[] = [];
+  const referencesByDeclaration = new Map<ts.Node, SymbolReference>();
+  const referencesBySymbol = new Map<ts.Symbol, SymbolReference>();
 
-  function visit(node: ts.Node): void {
-    const kind = getSymbolKind(node, checker);
-    const nameNode = getNameNode(node);
-    const symbol = nameNode === undefined ? undefined : checker.getSymbolAtLocation(nameNode);
+  for (const sourceFile of project.sourceFiles) {
+    const filePath = relative(project.repositoryRoot, sourceFile.fileName)
+      .split(sep)
+      .join("/");
+    const symbols: ExtractedSymbol[] = [];
+    const referencesInFile = new Map<ts.Symbol, SymbolReference>();
 
-    if (kind !== undefined && symbol !== undefined && !seen.has(symbol)) {
-      seen.add(symbol);
-      const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-      const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
+    function visit(node: ts.Node): void {
+      const kind = getSymbolKind(node, project.checker);
+      const nameNode = getNameNode(node);
+      const symbol =
+        nameNode === undefined
+          ? undefined
+          : project.checker.getSymbolAtLocation(nameNode);
 
-      symbols.push({
-        name: symbol.getName(),
-        qualifiedName: checker.getFullyQualifiedName(symbol),
-        kind,
-        startLine: start.line + 1,
-        startColumn: start.character + 1,
-        endLine: end.line + 1,
-        endColumn: end.character + 1,
-        signature: getSignature(node, checker),
-      });
+      if (kind !== undefined && symbol !== undefined) {
+        let reference = referencesInFile.get(symbol);
+
+        if (reference === undefined) {
+          const start = sourceFile.getLineAndCharacterOfPosition(
+            node.getStart(sourceFile),
+          );
+          const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
+          const extractedSymbol: ExtractedSymbol = {
+            name: symbol.getName(),
+            qualifiedName: project.checker.getFullyQualifiedName(symbol),
+            kind,
+            startLine: start.line + 1,
+            startColumn: start.character + 1,
+            endLine: end.line + 1,
+            endColumn: end.character + 1,
+            signature: getSignature(node, project.checker),
+          };
+
+          symbols.push(extractedSymbol);
+          reference = {
+            filePath,
+            name: extractedSymbol.name,
+            qualifiedName: extractedSymbol.qualifiedName,
+            kind: extractedSymbol.kind,
+            startLine: extractedSymbol.startLine,
+            startColumn: extractedSymbol.startColumn,
+          };
+          referencesInFile.set(symbol, reference);
+          if (!referencesBySymbol.has(symbol)) {
+            referencesBySymbol.set(symbol, reference);
+          }
+        }
+
+        referencesByDeclaration.set(node, reference);
+      }
+
+      ts.forEachChild(node, visit);
     }
 
-    ts.forEachChild(node, visit);
+    visit(sourceFile);
+    files.push({ path: filePath, symbols });
   }
 
-  visit(sourceFile);
-  return symbols;
+  return { files, referencesByDeclaration, referencesBySymbol };
 }
 
 function getSymbolKind(

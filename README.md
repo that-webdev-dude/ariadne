@@ -319,9 +319,9 @@ Do not add semantic or advanced indexing features until P0 demonstrates that the
 
 ## Current implementation
 
-The repository contains the Phase 1 storage bootstrap and Phase 2 TypeScript
-project loading and named-symbol extraction. Import and call extraction begins
-in Phase 3 and is not implemented yet.
+The repository contains the Phase 1 storage bootstrap, Phase 2 TypeScript
+project loading and named-symbol extraction, and Phase 3 static file imports
+and direct compiler-resolved call relationships. Query APIs are not implemented.
 
 ## Indexing a TypeScript project
 
@@ -337,4 +337,4 @@ npm run ari -- index /path/to/typescript-repository
 
 The `index` command loads the repository's root `tsconfig.json`, then creates or
 replaces `.ari/index.sqlite` with the project's files and supported named
-symbols. Import and call relationships are not indexed yet.
+symbols, local static imports, and direct compiler-resolved calls.
