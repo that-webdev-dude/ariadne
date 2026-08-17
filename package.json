@@ -1,0 +1,22 @@
+{
+  "name": "ariadne",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ari": "dist/src/cli.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/cli.test.js",
+    "ari": "node dist/src/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}
