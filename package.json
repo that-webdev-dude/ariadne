@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "bin": {
-    "ari": "dist/src/cli.js"
+    "ari": "dist/src/cli.js",
+    "ari-mcp": "dist/src/mcp.js"
   },
   "engines": {
     "node": ">=22.13"
@@ -12,13 +13,17 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/project.test.js dist/tests/relationships.test.js dist/tests/query.test.js dist/tests/cli.test.js",
-    "ari": "node dist/src/cli.js"
+    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/project.test.js dist/tests/relationships.test.js dist/tests/query.test.js dist/tests/mcp.test.js dist/tests/cli.test.js",
+    "ari": "node dist/src/cli.js",
+    "mcp": "node dist/src/mcp.js"
   },
   "dependencies": {
-    "typescript": "^5.9.0"
+    "@modelcontextprotocol/server": "^2.0.0",
+    "typescript": "^5.9.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "@types/node": "^24.0.0"
   }
 }

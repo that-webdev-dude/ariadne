@@ -322,7 +322,7 @@ Do not add semantic or advanced indexing features until P0 demonstrates that the
 The repository contains the Phase 1 storage bootstrap, Phase 2 TypeScript
 project loading and named-symbol extraction, Phase 3 static file imports and
 direct compiler-resolved call relationships, and the Phase 4 read-only query
-service. MCP exposure is not implemented.
+service. Phase 5 exposes that service through a thin read-only MCP adapter.
 
 ## Indexing a TypeScript project
 
@@ -361,3 +361,22 @@ try {
 The service provides `repoOverview`, `findSymbol`, `describeSymbol`,
 `dependencies`, and `dependents`. Symbol lookup results contain the stable ID
 required by the exact-symbol queries.
+
+## Running the MCP server
+
+Build the project, then configure an MCP client to launch the stdio server with
+the indexed repository root as its only argument:
+
+```json
+{
+  "command": "node",
+  "args": [
+    "/path/to/ariadne/dist/src/mcp.js",
+    "/path/to/indexed-typescript-repository"
+  ]
+}
+```
+
+The server exposes exactly `ari.repo_overview`, `ari.find_symbol`,
+`ari.describe_symbol`, `ari.dependencies`, and `ari.dependents`. Each tool is
+read-only and returns the corresponding Phase 4 projection as JSON text.
