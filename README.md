@@ -320,8 +320,9 @@ Do not add semantic or advanced indexing features until P0 demonstrates that the
 ## Current implementation
 
 The repository contains the Phase 1 storage bootstrap, Phase 2 TypeScript
-project loading and named-symbol extraction, and Phase 3 static file imports
-and direct compiler-resolved call relationships. Query APIs are not implemented.
+project loading and named-symbol extraction, Phase 3 static file imports and
+direct compiler-resolved call relationships, and the Phase 4 read-only query
+service. MCP exposure is not implemented.
 
 ## Indexing a TypeScript project
 
@@ -338,3 +339,25 @@ npm run ari -- index /path/to/typescript-repository
 The `index` command loads the repository's root `tsconfig.json`, then creates or
 replaces `.ari/index.sqlite` with the project's files and supported named
 symbols, local static imports, and direct compiler-resolved calls.
+
+## Querying an index
+
+Open an existing index from its repository root. Queries never rebuild or
+modify the index.
+
+```ts
+import { openQueryService } from "./dist/src/query/service.js";
+
+const queries = openQueryService("/path/to/typescript-repository");
+
+try {
+  console.log(queries.repoOverview());
+  console.log(queries.findSymbol("render"));
+} finally {
+  queries.close();
+}
+```
+
+The service provides `repoOverview`, `findSymbol`, `describeSymbol`,
+`dependencies`, and `dependents`. Symbol lookup results contain the stable ID
+required by the exact-symbol queries.
