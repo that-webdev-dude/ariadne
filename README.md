@@ -317,17 +317,13 @@ Incorrect relationships are not.
 
 Do not add semantic or advanced indexing features until P0 demonstrates that the structural index materially improves navigation.
 
-## First Codex Task
+## Current implementation
 
-The first task is intentionally small.
+The repository contains the Phase 1 storage bootstrap and Phase 2 TypeScript
+project loading and named-symbol extraction. Import and call extraction begins
+in Phase 3 and is not implemented yet.
 
-Build only the project skeleton, SQLite schema, and executable indexing shell.
-
-Do not begin TypeScript AST or call-graph extraction yet.
-
-The exact task is defined in `AGENTS.md`.
-
-## Phase 1 commands
+## Indexing a TypeScript project
 
 Requires Node.js 22.13 or newer.
 
@@ -339,5 +335,6 @@ npm run build
 npm run ari -- index /path/to/typescript-repository
 ```
 
-The `index` command creates or replaces `.ari/index.sqlite` with an empty P0
-schema. Source indexing is intentionally not part of Phase 1.
+The `index` command loads the repository's root `tsconfig.json`, then creates or
+replaces `.ari/index.sqlite` with the project's files and supported named
+symbols. Import and call relationships are not indexed yet.

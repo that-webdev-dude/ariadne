@@ -12,11 +12,13 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/cli.test.js",
+    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/project.test.js dist/tests/cli.test.js",
     "ari": "node dist/src/cli.js"
   },
-  "devDependencies": {
-    "@types/node": "^24.0.0",
+  "dependencies": {
     "typescript": "^5.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0"
   }
 }

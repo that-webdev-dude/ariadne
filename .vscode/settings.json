@@ -1,0 +1,41 @@
+{
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.fontSize": 15,
+    "workbench.tree.indent": 18,
+    "editor.tabSize": 4,
+    "editor.indentSize": 4,
+    "editor.lineHeight": 1.9,
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": true,
+    "prettier.tabWidth": 4,
+    "workbench.activityBar.orientation": "vertical",
+    "editor.mouseWheelZoom": true,
+    "editor.formatOnPaste": false,
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[javascriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[css]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[html]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "notebook.defaultFormatter": "esbenp.prettier-vscode",
+    "js/ts.format.enabled": true
+}
