@@ -54,8 +54,8 @@ test("repository reads metadata, aggregates, symbols, and direct relationships",
     });
     assert.equal(typeof repository.getMetadata().indexedAt, "string");
     assert.deepEqual(repository.getCounts(), {
-      files: 2,
-      symbols: 10,
+      files: 6,
+      symbols: 39,
       imports: 1,
       calls: 5,
     });
@@ -92,8 +92,8 @@ test("repoOverview returns bounded deterministic orientation", () => {
   assert.equal(typeof first.indexedAt, "string");
   assert.equal(first.indexerVersion, INDEXER_VERSION);
   assert.deepEqual(first.counts, {
-    files: 2,
-    symbols: 10,
+    files: 6,
+    symbols: 39,
     imports: 1,
     calls: 5,
   });
@@ -109,29 +109,30 @@ test("repoOverview returns bounded deterministic orientation", () => {
 test("findSymbol ranks lexical matches and preserves ambiguous symbols", () => {
   const greet = service.findSymbol("greet");
 
-  assert.equal(greet.matches.length, 3);
-  assert.ok(greet.matches.every(({ match }) => match === "exact_name"));
-  assert.equal(new Set(greet.matches.map(({ id }) => id)).size, 3);
+  assert.equal(greet.matches.slice(0, 3).length, 3);
+  assert.ok(
+    greet.matches.slice(0, 3).every(({ match }) => match === "exact_name"),
+  );
+  assert.equal(new Set(greet.matches.map(({ id }) => id)).size, greet.matches.length);
 
   const mainGreet = greet.matches.find(({ file }) => file === "src/main.ts");
   assert.ok(mainGreet);
   assert.equal(
-    service.findSymbol(mainGreet.qualifiedName).matches[0]?.match,
+    service.findSymbol(mainGreet.qualifiedName.toUpperCase()).matches[0]?.match,
     "exact_qualified",
   );
+  const qualifiedSuffix = service.findSymbol("GREETER.GREET").matches[0];
   assert.deepEqual(
-    service.findSymbol("Greeter.greet").matches.map(({ kind, match }) => [
-      kind,
-      match,
-    ]),
-    [["method", "suffix"]],
+    qualifiedSuffix && [qualifiedSuffix.kind, qualifiedSuffix.match],
+    ["method", "suffix"],
+  );
+  const prefix = service.findSymbol("CALL").matches[0];
+  assert.deepEqual(
+    prefix && [prefix.name, prefix.match],
+    ["caller", "prefix"],
   );
   assert.deepEqual(
-    service.findSymbol("call").matches.map(({ name, match }) => [name, match]),
-    [["caller", "prefix"]],
-  );
-  assert.deepEqual(
-    service.findSymbol("ther").matches.map(({ name, match }) => [name, match]),
+    service.findSymbol("THER").matches.map(({ name, match }) => [name, match]),
     [["otherCaller", "substring"]],
   );
   assert.equal(service.findSymbol("greet", { limit: 1 }).matches.length, 1);
@@ -139,6 +140,108 @@ test("findSymbol ranks lexical matches and preserves ambiguous symbols", () => {
     query: "doesNotExist",
     matches: [],
   });
+});
+
+test("findSymbol ranks all evidence before applying a compact weak-result ceiling", () => {
+  const exact = service.findSymbol("SCENEMANAGER");
+  assert.equal(exact.matches[0]?.name, "SceneManager");
+  assert.equal(exact.matches[0]?.match, "exact_name");
+
+  const lowercase = service.findSymbol("scene", { limit: 50 });
+  assert.ok(lowercase.matches.length <= 12);
+  assert.ok(lowercase.matches.length < 50);
+  assert.ok(
+    lowercase.matches.findIndex(({ name }) => name === "createSceneManager") < 10,
+  );
+  assert.ok(
+    lowercase.matches.findIndex(({ name }) => name === "createSceneManager") <
+      lowercase.matches.findIndex(({ name }) => name === "SceneManagerService"),
+  );
+  assert.equal(lowercase.matches.some(({ name }) => name === "loadConfig"), false);
+  assert.ok(
+    service
+      .findSymbol("scene", { limit: 12 })
+      .matches.findIndex(({ name }) => name === "createSceneManager") < 10,
+  );
+
+  const phrase = service.findSymbol("scene manager", { limit: 50 });
+  assert.ok(phrase.matches.length <= 12);
+  assert.deepEqual(
+    phrase.matches.slice(0, 2).map(({ name }) => name),
+    ["createSceneManager", "createSceneManagerService"],
+  );
+  assert.ok(
+    phrase.matches.findIndex(({ name }) => name === "SceneManagerService") < 5,
+  );
+
+  const camelCase = service.findSymbol("changeScene");
+  assert.ok(camelCase.matches.some(({ name }) => name === "createSceneManager"));
+  assert.ok(camelCase.matches.every(({ match }) => match === "token"));
+
+  const coverage = service.findSymbol("scene change update render", {
+    limit: 20,
+  });
+  const beginUpdate = coverage.matches.findIndex(
+    ({ name, kind }) => name === "beginUpdate" && kind === "function",
+  );
+  const prepareRender = coverage.matches.findIndex(
+    ({ name, kind }) => name === "prepareRender" && kind === "function",
+  );
+  assert.ok(coverage.matches.length <= 12);
+  assert.ok(beginUpdate >= 0 && beginUpdate < 10);
+  assert.ok(prepareRender >= 0 && prepareRender < 10);
+  assert.ok(coverage.matches.some(({ name }) => name === "createSceneManager"));
+  assert.equal(coverage.matches.some(({ name }) => name === "loadConfig"), false);
+
+  const fullIdentifier = service.findSymbol("prepareRender", { limit: 50 });
+  assert.ok(fullIdentifier.matches.length <= 12);
+  assert.ok(
+    fullIdentifier.matches
+      .slice(0, 2)
+      .every(({ name, match }) => name === "prepareRender" && match === "exact_name"),
+  );
+  assert.ok(
+    fullIdentifier.matches.findIndex(
+      ({ name, kind }) => name === "prepareRender" && kind === "function",
+    ) < 2,
+  );
+  assert.deepEqual(
+    service.findSymbol("scene change update render", { limit: 20 }),
+    service.findSymbol("scene change update render", { limit: 20 }),
+  );
+});
+
+test("findSymbol treats the public limit as a ceiling and preserves exact ambiguity", () => {
+  const weakFallback = service.findSymbol("scene manager", { limit: 50 });
+  assert.ok(weakFallback.matches.length <= 12);
+  assert.ok(JSON.stringify(weakFallback).length < 8_000);
+
+  const exactAmbiguity = service
+    .findSymbol("greet", { limit: 50 })
+    .matches.filter(({ name, match }) => name === "greet" && match === "exact_name");
+  assert.equal(exactAmbiguity.length, 3);
+  assert.equal(service.findSymbol("scene manager", { limit: 1 }).matches.length, 1);
+});
+
+test("findSymbol prefers non-test token ties without filtering exact tests", () => {
+  const tokenMatches = service
+    .findSymbol("scene helper")
+    .matches.filter(({ name }) => name === "sceneHelper");
+  assert.deepEqual(
+    tokenMatches.map(({ file, match }) => [file, match]),
+    [
+      ["src/scene.ts", "token"],
+      ["src/scene.test.ts", "token"],
+    ],
+  );
+
+  const exactMatches = service.findSymbol("sceneHelper").matches;
+  assert.equal(exactMatches.filter(({ name }) => name === "sceneHelper").length, 2);
+  assert.ok(
+    exactMatches
+      .filter(({ name }) => name === "sceneHelper")
+      .every(({ match }) => match === "exact_name"),
+  );
 });
 
 test("describeSymbol returns exact one-hop details without database IDs", () => {
@@ -192,7 +295,9 @@ test("dependents are deterministic, bounded, truncated, and one hop", () => {
 });
 
 test("ambiguous symbol IDs describe each duplicate independently", () => {
-  const greetMatches = service.findSymbol("greet").matches;
+  const greetMatches = service
+    .findSymbol("greet")
+    .matches.filter(({ name }) => name === "greet");
   const descriptions = greetMatches.map(({ id }) => service.describeSymbol(id));
 
   assert.equal(new Set(greetMatches.map(({ id }) => id)).size, 3);

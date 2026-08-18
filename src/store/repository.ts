@@ -9,7 +9,8 @@ export type SymbolSearchKind =
   | "exactName"
   | "suffix"
   | "prefix"
-  | "substring";
+  | "substring"
+  | "token";
 
 export interface StoredSymbol {
   filePath: string;
@@ -167,6 +168,26 @@ export class AriadneRepository {
     kind: SymbolSearchKind,
     limit: number,
   ): StoredSymbol[] {
+    if (kind === "token") {
+      return this.database
+        .prepare(`${symbolColumns}
+          WHERE
+            instr(lower(symbols.name), lower(?1)) > 0 OR
+            instr(lower(symbols.qualified_name), lower(?1)) > 0 OR
+            instr(lower(files.path), lower(?1)) > 0
+          ORDER BY
+            CASE
+              WHEN instr(lower(symbols.name), lower(?1)) > 0 THEN 0
+              WHEN instr(lower(symbols.qualified_name), lower(?1)) > 0 THEN 1
+              ELSE 2
+            END,
+            files.path, symbols.qualified_name, symbols.start_line,
+            symbols.start_column, symbols.kind, symbols.name
+          LIMIT ?2
+        `)
+        .all(query, boundLimit(limit)) as unknown as StoredSymbol[];
+    }
+
     const [where, parameters] = searchCondition(query, kind);
 
     return this.database
@@ -283,21 +304,23 @@ function searchCondition(
 ): [where: string, parameters: string[]] {
   switch (kind) {
     case "exactQualified":
-      return ["symbols.qualified_name = ?", [query]];
+      return ["lower(symbols.qualified_name) = lower(?)", [query]];
     case "exactName":
-      return ["symbols.name = ?", [query]];
+      return ["lower(symbols.name) = lower(?)", [query]];
     case "suffix":
       return [
-        "substr(symbols.qualified_name, -length(?)) = ?",
+        "substr(lower(symbols.qualified_name), -length(?)) = lower(?)",
         [query, query],
       ];
     case "prefix":
       return [
-        "substr(symbols.name, 1, length(?)) = ?",
+        "substr(lower(symbols.name), 1, length(?)) = lower(?)",
         [query, query],
       ];
     case "substring":
-      return ["instr(symbols.name, ?) > 0", [query]];
+      return ["instr(lower(symbols.name), lower(?)) > 0", [query]];
+    case "token":
+      throw new Error("Token search is handled separately");
   }
 }
 

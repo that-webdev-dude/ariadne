@@ -32,7 +32,8 @@ export type SymbolMatchKind =
   | "exact_name"
   | "suffix"
   | "prefix"
-  | "substring";
+  | "substring"
+  | "token";
 
 export interface SymbolMatch extends SymbolSummary {
   match: SymbolMatchKind;

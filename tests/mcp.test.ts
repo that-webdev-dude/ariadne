@@ -80,6 +80,12 @@ test("MCP exposes exactly five read-only Ariadne tools", async () => {
         annotations.openWorldHint === false,
     ),
   );
+  const findSymbol = tools.find(({ name }) => name === "ari.find_symbol");
+  assert.match(findSymbol?.description ?? "", /lexical/i);
+  assert.match(findSymbol?.description ?? "", /case-insensitive/i);
+  assert.match(findSymbol?.description ?? "", /identifier-like terms/i);
+  assert.match(findSymbol?.description ?? "", /ari\.describe_symbol/);
+  assert.match(findSymbol?.description ?? "", /not semantic search/i);
 });
 
 test("all MCP tools return the existing Phase 4 projections", async () => {
@@ -88,6 +94,10 @@ test("all MCP tools return the existing Phase 4 projections", async () => {
 
   const found = directQueries.findSymbol("a");
   assert.deepEqual(await callJson("ari.find_symbol", { query: "a" }), found);
+  assert.deepEqual(
+    await callJson("ari.find_symbol", { query: "scene manager", limit: 3 }),
+    directQueries.findSymbol("scene manager", { limit: 3 }),
+  );
   const a = found.matches[0];
   const d = directQueries.findSymbol("d").matches[0];
   assert.ok(a);

@@ -32,7 +32,8 @@ export function createAriadneMcpServer(repositoryPath: string): McpServer {
   server.registerTool(
     "ari.find_symbol",
     {
-      description: "Find indexed symbols using the existing lexical ranking.",
+      description:
+        "Find indexed symbols with lexical, case-insensitive matching. Natural-language phrases are split into identifier-like terms. Use returned symbol IDs with ari.describe_symbol. This is not semantic search.",
       inputSchema: z.object({
         query: z.string().trim().min(1),
         limit,

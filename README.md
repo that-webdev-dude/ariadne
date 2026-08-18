@@ -89,7 +89,8 @@ Returns compact repository orientation including file count, symbol count, top-l
 
 ### `find_symbol`
 
-Finds symbols by name or qualified name.
+Finds symbols with bounded, case-insensitive lexical matching. Phrases and
+identifiers are split into identifier-like terms; this is not semantic search.
 
 ### `describe_symbol`
 
