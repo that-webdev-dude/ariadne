@@ -1,0 +1,9 @@
+{"type":"capture.started","captureVersion":1,"startedAt":"2026-08-18T10:30:00.000Z"}
+{"type":"codex.event","elapsedMs":100,"event":{"type":"thread.started","thread_id":"fixture"}}
+{"type":"codex.event","elapsedMs":150,"event":{"type":"turn.started"}}
+{"type":"codex.event","elapsedMs":200,"event":{"type":"item.started","item":{"id":"ari-1","type":"mcp_tool_call","server":"ari","tool":"find_symbol","arguments":{"query":"prepareRender"}}}}
+{"type":"codex.event","elapsedMs":350,"event":{"type":"item.completed","item":{"id":"ari-1","type":"mcp_tool_call","server":"ari","tool":"find_symbol","arguments":{"query":"prepareRender"},"result":{"content":[{"type":"text","text":"{\"matches\":[{\"name\":\"prepareRender\"}]}"}]},"status":"completed"}}}
+{"type":"codex.event","elapsedMs":450,"event":{"type":"item.started","item":{"id":"source-1","type":"command_execution","command":"Get-Content -LiteralPath 'src/game.ts'"}}}
+{"type":"codex.event","elapsedMs":650,"event":{"type":"item.completed","item":{"id":"source-1","type":"command_execution","command":"Get-Content -LiteralPath 'src/game.ts'","aggregated_output":"line one\nline two\n","exit_code":0,"status":"completed"}}}
+{"type":"codex.event","elapsedMs":850,"event":{"type":"item.completed","item":{"id":"message-1","type":"agent_message","text":"{\"rootCause\":\"Fixture root cause\",\"causalChain\":\"Fixture causal chain\",\"evidence\":[\"src/game.ts:1-2\"],\"fixBoundary\":\"Fixture fix boundary\"}"}}}
+{"type":"codex.event","elapsedMs":900,"event":{"type":"turn.completed","usage":{"input_tokens":900,"cached_input_tokens":100,"output_tokens":170,"reasoning_output_tokens":70}}}

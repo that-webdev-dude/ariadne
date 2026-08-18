@@ -323,6 +323,8 @@ The repository contains the Phase 1 storage bootstrap, Phase 2 TypeScript
 project loading and named-symbol extraction, Phase 3 static file imports and
 direct compiler-resolved call relationships, and the Phase 4 read-only query
 service. Phase 5 exposes that service through a thin read-only MCP adapter.
+Phase 6 adds an experiment-only A/B benchmark harness under
+`benchmark/phase6`; it does not participate in indexing or query execution.
 
 ## Indexing a TypeScript project
 
@@ -380,3 +382,14 @@ the indexed repository root as its only argument:
 The server exposes exactly `ari.repo_overview`, `ari.find_symbol`,
 `ari.describe_symbol`, `ari.dependencies`, and `ari.dependents`. Each tool is
 read-only and returns the corresponding Phase 4 projection as JSON text.
+
+## Running the Phase 6 harness
+
+The focused harness test and sample report are available through:
+
+```sh
+npm run benchmark:test
+npm run benchmark -- benchmark/phase6/fixtures/sample-results.json
+```
+
+See `benchmark/phase6/README.md` for the frozen A/B protocol and accounting rules.

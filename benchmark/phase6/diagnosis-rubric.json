@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "phase6-scene-transition-stale-render-v1",
+  "instructions": "Score only the submitted diagnosis. Blind the evaluator to condition, tool trace, and run metrics.",
+  "criteria": [
+    {
+      "id": "root_cause",
+      "maxPoints": 4,
+      "anchor": "Identifies that a scene command requested during update remains queued until the next begin-update flush, so render preparation still reads the previously published scene stack."
+    },
+    {
+      "id": "causal_chain",
+      "maxPoints": 3,
+      "anchor": "Connects update-time request, missing pre-render scene flush, stale stack IDs used for render extraction, and the visible extra frame."
+    },
+    {
+      "id": "source_evidence",
+      "maxPoints": 2,
+      "anchor": "Cites concrete relevant symbols or locations, including GameFramePipeline beginUpdate/prepareRender and SceneManager queued request/flush behavior."
+    },
+    {
+      "id": "fix_boundary",
+      "maxPoints": 1,
+      "anchor": "Places the fix at the frame/scene commit boundary before render-store selection, while preserving world flush/publish ordering; does not blame renderer internals."
+    }
+  ],
+  "accuracyGate": {
+    "minimumTotal": 7,
+    "requiredMinimums": {
+      "root_cause": 3,
+      "causal_chain": 2
+    }
+  }
+}

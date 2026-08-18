@@ -13,7 +13,10 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/project.test.js dist/tests/relationships.test.js dist/tests/query.test.js dist/tests/mcp.test.js dist/tests/cli.test.js",
+    "test": "npm run build && node --test dist/tests/schema.test.js dist/tests/project.test.js dist/tests/relationships.test.js dist/tests/query.test.js dist/tests/mcp.test.js dist/tests/cli.test.js && npm run benchmark:test",
+    "benchmark": "node benchmark/phase6/analyze.mjs",
+    "benchmark:trace": "node benchmark/phase6/trace.mjs",
+    "benchmark:test": "node --test benchmark/phase6/analyze.test.mjs",
     "ari": "node dist/src/cli.js",
     "mcp": "node dist/src/mcp.js"
   },

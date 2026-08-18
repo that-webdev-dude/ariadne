@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "phase6-scene-transition-stale-render-v1",
+  "status": "frozen",
+  "frozenAt": "2026-08-18",
+  "task": {
+    "prompt": "Before doing anything else, if the ari.repo_overview tool is available, call it exactly once before any source or search navigation; if it is unavailable, proceed with standard navigation. After a scene change requested during an update, entities from the previous scene remain rendered for one additional frame. Diagnose the root cause. Do not modify files. Return the root cause, causal chain, concrete source evidence, and the smallest plausible fix boundary, then stop.",
+    "mode": "diagnosis-only"
+  },
+  "target": {
+    "repository": "https://github.com/that-webdev-dude/cluster-engine.git",
+    "commit": "f378fe4dd9e71b66e8999bd69bc6198848cc6f36",
+    "language": "TypeScript",
+    "requiredWorkingTree": "fresh detached worktree at the exact commit"
+  },
+  "ariadne": {
+    "repository": "https://github.com/that-webdev-dude/ariadne.git",
+    "functionalityCommit": "197c999615135de7e8c816aead5df1377a60d701",
+    "indexCommand": "npm run ari -- index <TARGET_WORKTREE>",
+    "mcpCommand": "node dist/src/mcp.js <TARGET_WORKTREE>"
+  },
+  "runner": {
+    "name": "codex-cli",
+    "version": "0.146.1",
+    "mode": "exec-json"
+  },
+  "agent": {
+    "provider": "OpenAI",
+    "model": "gpt-5.6-sol",
+    "settings": {
+      "reasoningEffort": "high"
+    },
+    "instructions": [
+      "Diagnose only; do not edit files.",
+      "Use only the tools enabled by the run configuration.",
+      "When Ariadne tools are available, call ari.repo_overview before any source or search navigation and use Ariadne for initial repository navigation. When Ariadne tools are unavailable, use the standard repository navigation tools.",
+      "Use one navigation command per tool call. Read one source file at a time with Get-Content -LiteralPath.",
+      "Allowed standard navigation commands are rg, Get-ChildItem, git grep, git ls-files, Get-Content -LiteralPath, Get-Location, Resolve-Path, Test-Path, git status, and git rev-parse. Do not run tests, builds, or web searches.",
+      "Do not infer hidden benchmark expectations.",
+      "Stop after returning the requested diagnosis."
+    ]
+  },
+  "limits": {
+    "wallClockMs": 1200000,
+    "maxToolCalls": 100
+  },
+  "successTarget": {
+    "minimumDiagnosisScore": 7,
+    "minimumSourceTokenReductionPercent": 40
+  }
+}

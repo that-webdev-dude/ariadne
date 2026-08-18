@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "manifest": "./task.manifest.json",
+  "common": {
+    "repetitions": 3,
+    "order": "interleaved-randomized-and-recorded",
+    "runnerRef": "./task.manifest.json#/runner",
+    "modelRef": "./task.manifest.json#/agent",
+    "limitsRef": "./task.manifest.json#/limits",
+    "targetRef": "./task.manifest.json#/target",
+    "standardTools": [
+      "list_files",
+      "search_files",
+      "search_text",
+      "read_source"
+    ],
+    "normalToolExcludes": [
+      ".ari/**"
+    ],
+    "traceSchema": "./trace.schema.json",
+    "diagnosisOutputSchema": "./diagnosis-output.schema.json"
+  },
+  "conditions": {
+    "control": {
+      "additionalTools": []
+    },
+    "ariadne": {
+      "additionalTools": [
+        "ari.repo_overview",
+        "ari.find_symbol",
+        "ari.describe_symbol",
+        "ari.dependencies",
+        "ari.dependents"
+      ],
+      "mcpCommandRef": "./task.manifest.json#/ariadne/mcpCommand"
+    }
+  }
+}

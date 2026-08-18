@@ -1,0 +1,247 @@
+{
+  "fixture": true,
+  "runs": [
+    {
+      "trace": {
+        "$schema": "../trace.schema.json",
+        "schemaVersion": 1,
+        "runId": "sample-control-01",
+        "benchmarkId": "phase6-scene-transition-stale-render-v1",
+        "condition": "control",
+        "runConfigId": "control",
+        "manifestSha256": "cdb17bffd3f1683908ae6a7b8b45fa6de7ea027878957c55e3c42d30f829c0ef",
+        "targetCommit": "f378fe4dd9e71b66e8999bd69bc6198848cc6f36",
+        "ariadneCommit": null,
+        "runner": {
+          "name": "codex-cli",
+          "version": "0.146.1",
+          "mode": "exec-json"
+        },
+        "model": {
+          "provider": "OpenAI",
+          "id": "gpt-5.6-sol",
+          "settings": {
+            "reasoningEffort": "high"
+          }
+        },
+        "startedAt": "2026-08-18T09:00:00.000Z",
+        "usage": {
+          "inputTokens": 1200,
+          "cachedInputTokens": 200,
+          "outputTokens": 180,
+          "reasoningOutputTokens": 80
+        },
+        "events": [
+          {
+            "sequence": 1,
+            "elapsedMs": 100,
+            "type": "tool_call",
+            "callId": "c1",
+            "tool": "search_text",
+            "category": "search",
+            "arguments": {
+              "query": "scene"
+            }
+          },
+          {
+            "sequence": 2,
+            "elapsedMs": 200,
+            "type": "tool_result",
+            "callId": "c1",
+            "ok": true,
+            "context": [
+              {
+                "kind": "search_result",
+                "content": "src/game.ts:10: scene",
+                "tokenCount": 5
+              }
+            ]
+          },
+          {
+            "sequence": 3,
+            "elapsedMs": 300,
+            "type": "tool_call",
+            "callId": "c2",
+            "tool": "read_source",
+            "category": "source",
+            "arguments": {
+              "path": "src/game.ts"
+            }
+          },
+          {
+            "sequence": 4,
+            "elapsedMs": 450,
+            "type": "tool_result",
+            "callId": "c2",
+            "ok": true,
+            "context": [
+              {
+                "kind": "source",
+                "path": "src/game.ts",
+                "content": "line one\nline two\nline three",
+                "tokenCount": 6
+              }
+            ]
+          },
+          {
+            "sequence": 5,
+            "elapsedMs": 500,
+            "type": "tool_call",
+            "callId": "c3",
+            "tool": "read_source",
+            "category": "source",
+            "arguments": {
+              "path": "src/scene.ts"
+            }
+          },
+          {
+            "sequence": 6,
+            "elapsedMs": 650,
+            "type": "tool_result",
+            "callId": "c3",
+            "ok": true,
+            "context": [
+              {
+                "kind": "source",
+                "path": "src/scene.ts",
+                "content": "line one\nline two",
+                "tokenCount": 4
+              }
+            ]
+          },
+          {
+            "sequence": 7,
+            "elapsedMs": 1000,
+            "type": "final",
+            "content": "Fixture diagnosis.",
+            "diagnosis": {
+              "rootCause": "Fixture root cause",
+              "causalChain": "Fixture causal chain",
+              "evidence": [
+                "Fixture evidence"
+              ],
+              "fixBoundary": "Fixture fix boundary"
+            }
+          }
+        ]
+      },
+      "assessment": {
+        "evaluatorId": "blind-evaluator-1",
+        "points": {
+          "root_cause": 4,
+          "causal_chain": 3,
+          "source_evidence": 2,
+          "fix_boundary": 1
+        }
+      }
+    },
+    {
+      "trace": {
+        "$schema": "../trace.schema.json",
+        "schemaVersion": 1,
+        "runId": "sample-ariadne-01",
+        "benchmarkId": "phase6-scene-transition-stale-render-v1",
+        "condition": "ariadne",
+        "runConfigId": "ariadne",
+        "manifestSha256": "cdb17bffd3f1683908ae6a7b8b45fa6de7ea027878957c55e3c42d30f829c0ef",
+        "targetCommit": "f378fe4dd9e71b66e8999bd69bc6198848cc6f36",
+        "ariadneCommit": "197c999615135de7e8c816aead5df1377a60d701",
+        "runner": {
+          "name": "codex-cli",
+          "version": "0.146.1",
+          "mode": "exec-json"
+        },
+        "model": {
+          "provider": "OpenAI",
+          "id": "gpt-5.6-sol",
+          "settings": {
+            "reasoningEffort": "high"
+          }
+        },
+        "startedAt": "2026-08-18T09:30:00.000Z",
+        "usage": {
+          "inputTokens": 900,
+          "cachedInputTokens": 100,
+          "outputTokens": 170,
+          "reasoningOutputTokens": 70
+        },
+        "events": [
+          {
+            "sequence": 1,
+            "elapsedMs": 100,
+            "type": "tool_call",
+            "callId": "a1",
+            "tool": "ari.find_symbol",
+            "category": "ariadne",
+            "arguments": {
+              "query": "prepareRender"
+            }
+          },
+          {
+            "sequence": 2,
+            "elapsedMs": 200,
+            "type": "tool_result",
+            "callId": "a1",
+            "ok": true,
+            "context": [
+              {
+                "kind": "ariadne_result",
+                "content": "{\"matches\":[{\"name\":\"prepareRender\"}]}",
+                "tokenCount": 8
+              }
+            ]
+          },
+          {
+            "sequence": 3,
+            "elapsedMs": 300,
+            "type": "tool_call",
+            "callId": "a2",
+            "tool": "read_source",
+            "category": "source",
+            "arguments": {
+              "path": "src/game.ts"
+            }
+          },
+          {
+            "sequence": 4,
+            "elapsedMs": 450,
+            "type": "tool_result",
+            "callId": "a2",
+            "ok": true,
+            "context": [
+              {
+                "kind": "source",
+                "path": "src/game.ts",
+                "content": "line one\nline two",
+                "tokenCount": 3
+              }
+            ]
+          },
+          {
+            "sequence": 5,
+            "elapsedMs": 700,
+            "type": "final",
+            "content": "Fixture diagnosis.",
+            "diagnosis": {
+              "rootCause": "Fixture root cause",
+              "causalChain": "Fixture causal chain",
+              "evidence": [
+                "Fixture evidence"
+              ],
+              "fixBoundary": "Fixture fix boundary"
+            }
+          }
+        ]
+      },
+      "assessment": {
+        "evaluatorId": "blind-evaluator-2",
+        "points": {
+          "root_cause": 4,
+          "causal_chain": 3,
+          "source_evidence": 2,
+          "fix_boundary": 1
+        }
+      }
+    }
+  ]
+}
