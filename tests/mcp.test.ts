@@ -94,6 +94,7 @@ test("all MCP tools return the existing Phase 4 projections", async () => {
 
   const found = directQueries.findSymbol("a");
   assert.deepEqual(await callJson("ari.find_symbol", { query: "a" }), found);
+  assert.ok(found.matches.every((match) => !("qualifiedName" in match)));
   assert.deepEqual(
     await callJson("ari.find_symbol", { query: "scene manager", limit: 3 }),
     directQueries.findSymbol("scene manager", { limit: 3 }),
@@ -103,9 +104,13 @@ test("all MCP tools return the existing Phase 4 projections", async () => {
   assert.ok(a);
   assert.ok(d);
 
+  const described = directQueries.describeSymbol(a.id);
+  assert.ok(described);
+  assert.equal(typeof described.symbol.qualifiedName, "string");
+  assert.ok(described.calls.every((symbol) => !("qualifiedName" in symbol)));
   assert.deepEqual(
     await callJson("ari.describe_symbol", { symbolId: a.id }),
-    directQueries.describeSymbol(a.id),
+    described,
   );
   assert.deepEqual(
     await callJson("ari.dependencies", { symbolId: a.id, limit: 1 }),

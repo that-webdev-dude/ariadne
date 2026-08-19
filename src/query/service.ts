@@ -18,6 +18,9 @@ import type {
 export const DEFAULT_FIND_LIMIT = 10;
 export const DEFAULT_RELATION_LIMIT = 20;
 export const MAX_QUERY_LIMIT = 100;
+export const FIND_SYMBOL_RESPONSE_BYTE_LIMIT = 8_192;
+// Leaves the response budget for navigation results while allowing diagnostic phrases.
+export const FIND_SYMBOL_QUERY_BYTE_LIMIT = 512;
 
 const TOP_LEVEL_PATH_LIMIT = 20;
 const ENTRY_CANDIDATE_LIMIT = 10;
@@ -81,6 +84,13 @@ export class AriadneQueryService {
     const normalizedQuery = query.trim();
     if (normalizedQuery.length === 0) {
       throw new Error("Symbol query must not be empty");
+    }
+    if (
+      Buffer.byteLength(normalizedQuery, "utf8") > FIND_SYMBOL_QUERY_BYTE_LIMIT
+    ) {
+      throw new Error(
+        `Symbol query must not exceed ${FIND_SYMBOL_QUERY_BYTE_LIMIT} UTF-8 bytes`,
+      );
     }
 
     const limit = normalizeLimit(options.limit, DEFAULT_FIND_LIMIT);
@@ -147,10 +157,10 @@ export class AriadneQueryService {
       weakLimit,
     );
 
-    return {
-      query: normalizedQuery,
-      matches: [...exactCandidates, ...weakCandidates].map(toRankedMatch),
-    };
+    return fitFindResultToByteLimit(normalizedQuery, [
+      ...exactCandidates,
+      ...weakCandidates,
+    ]);
   }
 
   describeSymbol(
@@ -169,6 +179,7 @@ export class AriadneQueryService {
     return {
       symbol: {
         ...toSymbolSummary(symbol),
+        qualifiedName: symbol.qualifiedName,
         signature: symbol.signature,
         startLine: symbol.startLine,
         startColumn: symbol.startColumn,
@@ -233,17 +244,38 @@ function toSymbolSummary(symbol: StoredSymbol): SymbolSummary {
   return {
     id: createSymbolId({
       filePath: symbol.filePath,
-      qualifiedName: symbol.qualifiedName,
       kind: symbol.kind,
       startLine: symbol.startLine,
       startColumn: symbol.startColumn,
     }),
     name: symbol.name,
-    qualifiedName: symbol.qualifiedName,
     kind: symbol.kind,
     file: symbol.filePath,
     line: symbol.startLine,
   };
+}
+
+function fitFindResultToByteLimit(
+  query: string,
+  candidates: readonly RankedCandidate[],
+): FindSymbolResult {
+  const result: FindSymbolResult = { query, matches: [] };
+
+  for (const candidate of candidates) {
+    const next: FindSymbolResult = {
+      query,
+      matches: [...result.matches, toRankedMatch(candidate)],
+    };
+    if (
+      Buffer.byteLength(JSON.stringify(next), "utf8") >
+      FIND_SYMBOL_RESPONSE_BYTE_LIMIT
+    ) {
+      break;
+    }
+    result.matches = next.matches;
+  }
+
+  return result;
 }
 
 function scoreCandidate(

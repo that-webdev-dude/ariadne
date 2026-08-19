@@ -1,8 +1,8 @@
+import { posix, win32 } from "node:path";
 import type { SymbolKind } from "./records.js";
 
 export interface SymbolIdentity {
   filePath: string;
-  qualifiedName: string;
   kind: SymbolKind;
   startLine: number;
   startColumn: number;
@@ -18,9 +18,12 @@ const symbolKinds = new Set<SymbolKind>([
 ]);
 
 export function createSymbolId(identity: SymbolIdentity): string {
+  if (!isRepositoryRelativePath(identity.filePath)) {
+    throw new Error("Symbol ID file path must be repository-relative");
+  }
+
   const payload = JSON.stringify([
     identity.filePath,
-    identity.qualifiedName,
     identity.kind,
     identity.startLine,
     identity.startColumn,
@@ -41,25 +44,34 @@ export function parseSymbolId(id: string): SymbolIdentity | null {
 
     if (
       !Array.isArray(value) ||
-      value.length !== 5 ||
+      value.length !== 4 ||
       typeof value[0] !== "string" ||
       typeof value[1] !== "string" ||
-      typeof value[2] !== "string" ||
-      !symbolKinds.has(value[2] as SymbolKind) ||
+      !symbolKinds.has(value[1] as SymbolKind) ||
+      !Number.isInteger(value[2]) ||
+      (value[2] as number) < 1 ||
       !Number.isInteger(value[3]) ||
-      !Number.isInteger(value[4])
+      (value[3] as number) < 1 ||
+      !isRepositoryRelativePath(value[0])
     ) {
       return null;
     }
 
     return {
       filePath: value[0],
-      qualifiedName: value[1],
-      kind: value[2] as SymbolKind,
-      startLine: value[3] as number,
-      startColumn: value[4] as number,
+      kind: value[1] as SymbolKind,
+      startLine: value[2] as number,
+      startColumn: value[3] as number,
     };
   } catch {
     return null;
   }
+}
+
+function isRepositoryRelativePath(filePath: string): boolean {
+  return (
+    filePath.length > 0 &&
+    !posix.isAbsolute(filePath) &&
+    !win32.isAbsolute(filePath)
+  );
 }

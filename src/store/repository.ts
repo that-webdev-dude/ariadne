@@ -205,7 +205,6 @@ export class AriadneRepository {
       .prepare(`${symbolColumns}
         WHERE
           files.path = ? AND
-          symbols.qualified_name = ? AND
           symbols.kind = ? AND
           symbols.start_line = ? AND
           symbols.start_column = ?
@@ -213,7 +212,6 @@ export class AriadneRepository {
       `)
       .all(
         identity.filePath,
-        identity.qualifiedName,
         identity.kind,
         identity.startLine,
         identity.startColumn,
@@ -247,7 +245,6 @@ export class AriadneRepository {
         JOIN files ON files.id = symbols.file_id
         WHERE
           files.path = ? AND
-          symbols.qualified_name = ? AND
           symbols.kind = ? AND
           symbols.start_line = ? AND
           symbols.start_column = ?
@@ -255,7 +252,6 @@ export class AriadneRepository {
       `)
       .all(
         identity.filePath,
-        identity.qualifiedName,
         identity.kind,
         identity.startLine,
         identity.startColumn,

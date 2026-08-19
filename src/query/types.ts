@@ -7,10 +7,18 @@ export interface QueryLimitOptions {
 export interface SymbolSummary {
   id: string;
   name: string;
-  qualifiedName: string;
   kind: SymbolKind;
   file: string;
   line: number;
+}
+
+export interface DetailedSymbol extends SymbolSummary {
+  qualifiedName: string;
+  signature: string | null;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
 }
 
 export interface RepoOverview {
@@ -45,13 +53,7 @@ export interface FindSymbolResult {
 }
 
 export interface SymbolDescription {
-  symbol: SymbolSummary & {
-    signature: string | null;
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-  };
+  symbol: DetailedSymbol;
   calls: SymbolSummary[];
   calledBy: SymbolSummary[];
   callsTruncated: boolean;

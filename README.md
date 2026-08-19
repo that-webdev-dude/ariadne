@@ -363,7 +363,14 @@ try {
 
 The service provides `repoOverview`, `findSymbol`, `describeSymbol`,
 `dependencies`, and `dependents`. Symbol lookup results contain the stable ID
-required by the exact-symbol queries.
+required by the exact-symbol queries. Compact symbol summaries contain only
+`id`, `name`, `kind`, `file`, and `line`; only the detailed symbol returned by
+`describeSymbol` includes its stored `qualifiedName`.
+
+Symbol IDs are deterministic Base64url encodings of the repository-relative
+file path, symbol kind, start line, and start column. `findSymbol` accepts at
+most 512 UTF-8 query bytes and returns at most 8,192 serialized UTF-8 bytes,
+while preserving ranked order and the requested result limit.
 
 ## Running the MCP server
 

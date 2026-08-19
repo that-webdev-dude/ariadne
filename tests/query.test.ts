@@ -5,10 +5,12 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import { extractProject } from "../src/extractor/project.js";
 import {
+  FIND_SYMBOL_QUERY_BYTE_LIMIT,
+  FIND_SYMBOL_RESPONSE_BYTE_LIMIT,
   type AriadneQueryService,
   openQueryService,
 } from "../src/query/service.js";
-import { createSymbolId } from "../src/symbolId.js";
+import { createSymbolId, parseSymbolId } from "../src/symbolId.js";
 import { initializeIndex, INDEXER_VERSION } from "../src/store/database.js";
 import {
   AriadneIndexNotFoundError,
@@ -69,7 +71,6 @@ test("repository reads metadata, aggregates, symbols, and direct relationships",
     assert.ok(a);
     const aId = createSymbolId({
       filePath: a.filePath,
-      qualifiedName: a.qualifiedName,
       kind: a.kind,
       startLine: a.startLine,
       startColumn: a.startColumn,
@@ -81,6 +82,98 @@ test("repository reads metadata, aggregates, symbols, and direct relationships",
     );
   } finally {
     repository.close();
+  }
+});
+
+test("symbol IDs round trip compact repository-relative declaration identity", () => {
+  const identity = {
+    filePath: "src/scene.ts",
+    kind: "function" as const,
+    startLine: 12,
+    startColumn: 3,
+  };
+  const id = createSymbolId(identity);
+
+  assert.match(id, /^sym_[A-Za-z0-9_-]+$/);
+  assert.deepEqual(parseSymbolId(id), identity);
+  assert.deepEqual(
+    JSON.parse(Buffer.from(id.slice(4), "base64url").toString("utf8")),
+    ["src/scene.ts", "function", 12, 3],
+  );
+  assert.throws(
+    () => createSymbolId({ ...identity, filePath: resolve("src/scene.ts") }),
+    /repository-relative/,
+  );
+});
+
+test("malformed and obsolete symbol IDs do not parse", () => {
+  const encoded = (value: unknown) =>
+    `sym_${Buffer.from(JSON.stringify(value), "utf8").toString("base64url")}`;
+
+  for (const id of [
+    "not_sym",
+    "sym_not-json",
+    encoded(["src/scene.ts", "qualified", "function", 1, 1]),
+    encoded(["src/scene.ts", "unknown", 1, 1]),
+    encoded(["src/scene.ts", "function", 0, 1]),
+    encoded([resolve("src/scene.ts"), "function", 1, 1]),
+  ]) {
+    assert.equal(parseSymbolId(id), null);
+  }
+});
+
+test("repository symbol lookup fails closed when compact identity is ambiguous", () => {
+  const ambiguousRepositoryPath = mkdtempSync(
+    join(tmpdir(), "ariadne-query-ambiguous-"),
+  );
+  initializeIndex(ambiguousRepositoryPath, {
+    files: [
+      {
+        path: "src/ambiguous.ts",
+        symbols: [
+          {
+            name: "first",
+            qualifiedName: "project.first",
+            kind: "function",
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 10,
+            signature: "(): void",
+          },
+          {
+            name: "second",
+            qualifiedName: "project.second",
+            kind: "function",
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 11,
+            signature: "(): void",
+          },
+        ],
+      },
+    ],
+    imports: [],
+    calls: [],
+  });
+  const repository = AriadneRepository.open(ambiguousRepositoryPath);
+  const id = createSymbolId({
+    filePath: "src/ambiguous.ts",
+    kind: "function",
+    startLine: 1,
+    startColumn: 1,
+  });
+
+  try {
+    assert.equal(repository.getSymbolById(id), null);
+    assert.deepEqual(repository.getOutgoingCalls(id, 10), {
+      symbols: [],
+      truncated: false,
+    });
+  } finally {
+    repository.close();
+    rmSync(ambiguousRepositoryPath, { recursive: true, force: true });
   }
 });
 
@@ -117,8 +210,11 @@ test("findSymbol ranks lexical matches and preserves ambiguous symbols", () => {
 
   const mainGreet = greet.matches.find(({ file }) => file === "src/main.ts");
   assert.ok(mainGreet);
+  const mainGreetDescription = service.describeSymbol(mainGreet.id);
+  assert.ok(mainGreetDescription);
   assert.equal(
-    service.findSymbol(mainGreet.qualifiedName.toUpperCase()).matches[0]?.match,
+    service.findSymbol(mainGreetDescription.symbol.qualifiedName.toUpperCase())
+      .matches[0]?.match,
     "exact_qualified",
   );
   const qualifiedSuffix = service.findSymbol("GREETER.GREET").matches[0];
@@ -214,13 +310,105 @@ test("findSymbol ranks all evidence before applying a compact weak-result ceilin
 test("findSymbol treats the public limit as a ceiling and preserves exact ambiguity", () => {
   const weakFallback = service.findSymbol("scene manager", { limit: 50 });
   assert.ok(weakFallback.matches.length <= 12);
-  assert.ok(JSON.stringify(weakFallback).length < 8_000);
+  assert.ok(
+    Buffer.byteLength(JSON.stringify(weakFallback), "utf8") <=
+      FIND_SYMBOL_RESPONSE_BYTE_LIMIT,
+  );
 
   const exactAmbiguity = service
     .findSymbol("greet", { limit: 50 })
     .matches.filter(({ name, match }) => name === "greet" && match === "exact_name");
   assert.equal(exactAmbiguity.length, 3);
   assert.equal(service.findSymbol("scene manager", { limit: 1 }).matches.length, 1);
+});
+
+test("findSymbol enforces its UTF-8 query bound for ASCII and multibyte input", () => {
+  assert.doesNotThrow(() =>
+    service.findSymbol("a".repeat(FIND_SYMBOL_QUERY_BYTE_LIMIT)),
+  );
+  assert.throws(
+    () => service.findSymbol("a".repeat(FIND_SYMBOL_QUERY_BYTE_LIMIT + 1)),
+    /512 UTF-8 bytes/,
+  );
+  assert.doesNotThrow(() =>
+    service.findSymbol("é".repeat(FIND_SYMBOL_QUERY_BYTE_LIMIT / 2)),
+  );
+  assert.throws(
+    () => service.findSymbol("é".repeat(FIND_SYMBOL_QUERY_BYTE_LIMIT / 2 + 1)),
+    /512 UTF-8 bytes/,
+  );
+});
+
+test("findSymbol preserves ranking and stops before the first result over 8 KiB", () => {
+  const budgetRepositoryPath = mkdtempSync(
+    join(tmpdir(), "ariadne-query-budget-"),
+  );
+  const paths = Array.from(
+    { length: 100 },
+    (_, index) =>
+      `src/${String(index).padStart(3, "0")}-${"long-path-".repeat(12)}.ts`,
+  );
+
+  initializeIndex(budgetRepositoryPath, {
+    files: paths.map((path, index) => ({
+      path,
+      symbols: [
+        {
+          name: "target",
+          qualifiedName: `project.target${index}`,
+          kind: "function" as const,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 10,
+          signature: "(): void",
+        },
+      ],
+    })),
+    imports: [],
+    calls: [],
+  });
+  const budgetService = openQueryService(budgetRepositoryPath);
+
+  try {
+    const result = budgetService.findSymbol("target", { limit: 100 });
+    const expected = paths.map((file) => ({
+      id: createSymbolId({
+        filePath: file,
+        kind: "function",
+        startLine: 1,
+        startColumn: 1,
+      }),
+      name: "target",
+      kind: "function" as const,
+      file,
+      line: 1,
+      match: "exact_name" as const,
+    }));
+
+    assert.ok(result.matches.length < expected.length);
+    assert.deepEqual(result.matches, expected.slice(0, result.matches.length));
+    assert.ok(
+      Buffer.byteLength(JSON.stringify(result), "utf8") <=
+        FIND_SYMBOL_RESPONSE_BYTE_LIMIT,
+    );
+    assert.ok(
+      Buffer.byteLength(
+        JSON.stringify({
+          query: result.query,
+          matches: [...result.matches, expected[result.matches.length]],
+        }),
+        "utf8",
+      ) > FIND_SYMBOL_RESPONSE_BYTE_LIMIT,
+    );
+    assert.deepEqual(
+      budgetService.findSymbol("target", { limit: 2 }).matches,
+      expected.slice(0, 2),
+    );
+  } finally {
+    budgetService.close();
+    rmSync(budgetRepositoryPath, { recursive: true, force: true });
+  }
 });
 
 test("findSymbol prefers non-test token ties without filtering exact tests", () => {
@@ -250,6 +438,7 @@ test("describeSymbol returns exact one-hop details without database IDs", () => 
 
   assert.ok(description);
   assert.equal(description.symbol.id, a.id);
+  assert.equal(typeof description.symbol.qualifiedName, "string");
   assert.equal(description.symbol.signature, "(): number");
   assert.equal(description.symbol.startLine, 3);
   assert.equal(description.symbol.startColumn, 1);
@@ -262,6 +451,33 @@ test("describeSymbol returns exact one-hop details without database IDs", () => 
   assert.equal(JSON.stringify(description).includes("file_id"), false);
   assert.equal(JSON.stringify(description).includes("fileId"), false);
   assert.equal(service.describeSymbol("sym_not-valid"), null);
+});
+
+test("compact projections omit qualified names and all returned IDs resolve", () => {
+  const found = service.findSymbol("a");
+  const a = requiredMatch("a");
+  const description = service.describeSymbol(a.id);
+  const dependencies = service.dependencies(a.id);
+  const dependents = service.dependents(a.id);
+  assert.ok(description);
+  assert.ok(dependencies);
+  assert.ok(dependents);
+
+  const summaries = [
+    ...service.repoOverview().entryCandidates,
+    ...found.matches,
+    ...description.calls,
+    ...description.calledBy,
+    dependencies.symbol,
+    ...dependencies.dependencies,
+    dependents.symbol,
+    ...dependents.dependents,
+  ];
+
+  assert.ok(summaries.length > 0);
+  assert.ok(summaries.every((summary) => !("qualifiedName" in summary)));
+  assert.ok(summaries.every(({ id }) => service.describeSymbol(id) !== null));
+  assert.equal(typeof description.symbol.qualifiedName, "string");
 });
 
 test("dependencies are deterministic, bounded, truncated, and one hop", () => {
